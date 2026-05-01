@@ -18,7 +18,7 @@ DATASET_SUBDIRS = [
 @dataclass
 class TrainConfig:
     # Paths
-    dataset_root: str = "/Volumes/LocHT/lerobot_vrh31"
+    dataset_root: str = "/mnt/data/sftp/data/locht1/vr_data/lerobot_vrh31_classification"
     dataset_subdirs: List[str] = field(default_factory=lambda: DATASET_SUBDIRS)
     camera: str = "observation.images.color.head"
     checkpoint_dir: str = "checkpoints"

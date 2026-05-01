@@ -106,10 +106,10 @@ def main():
         )
 
     # ── Datasets ──────────────────────────────────────────────────────────────
-    from config import DATASET_SUBDIRS
+    # Pass empty list → dataset.py auto-scans for sub-folders with meta/info.json
     shared_kwargs = dict(
         dataset_root=args.dataset_root,
-        dataset_subdirs=DATASET_SUBDIRS,
+        dataset_subdirs=[],
         camera=args.camera,
         clip_frames=args.clip_frames,
         clip_stride=args.clip_stride,

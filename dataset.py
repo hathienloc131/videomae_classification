@@ -149,9 +149,22 @@ class LeRobotClipDataset(Dataset):
         dataset_root: str,
         dataset_subdirs: List[str],
     ) -> List[Tuple[str, int, int, int]]:
+        root = Path(dataset_root)
+
+        # Auto-detect layout:
+        # 1. Root is itself a LeRobot dataset (has meta/info.json directly)
+        # 2. Root is a parent folder — scan for any child that has meta/info.json
+        if (root / "meta" / "info.json").exists():
+            candidate_paths = [root]
+        else:
+            if dataset_subdirs:
+                candidate_paths = [root / s for s in dataset_subdirs]
+            else:
+                candidate_paths = sorted(p for p in root.iterdir()
+                                         if (p / "meta" / "info.json").exists())
+
         records = []
-        for subdir in dataset_subdirs:
-            subdir_path = Path(dataset_root) / subdir
+        for subdir_path in candidate_paths:
             if not subdir_path.exists():
                 print(f"[dataset] Skipping missing sub-dataset: {subdir_path}")
                 continue
