@@ -145,3 +145,13 @@ Output: `Predicted: Success (confidence: 0.94)`
 ```python
 LABEL_NAMES = {0: "Doing", 1: "Failure", 2: "Success"}
 ```
+
+
+
+python train.py \
+  --dataset_root /mnt/data/sftp/data/locht1/vr_data/lerobot_vrh31_classification \
+  --epochs 20 \
+  --batch_size 8 \
+  --num_workers 8 \
+  --wandb_project videomae-task-detector \
+  --checkpoint_dir /mnt/data/sftp/data/locht1/vr_checkpoints/videomae_classification_imghead_2second

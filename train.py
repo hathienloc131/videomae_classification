@@ -15,6 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+from sklearn.metrics import classification_report, f1_score, precision_score, recall_score
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -70,7 +71,10 @@ def compute_class_weights(dataset: LeRobotClipDataset) -> torch.Tensor:
 @torch.no_grad()
 def evaluate(model, loader, device, scaler=None):
     model.eval()
-    total_loss = correct = total = 0
+    total_loss = 0
+    total = 0
+    all_preds = []
+    all_labels = []
     criterion = nn.CrossEntropyLoss()
     for batch in loader:
         pixel_values = batch["pixel_values"].to(device)
@@ -80,10 +84,25 @@ def evaluate(model, loader, device, scaler=None):
         loss = criterion(outputs.logits, labels)
         preds = outputs.logits.argmax(dim=-1)
         total_loss += loss.item() * labels.size(0)
-        correct += (preds == labels).sum().item()
         total += labels.size(0)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
     model.train()
-    return total_loss / total, correct / total
+
+    all_preds = np.array(all_preds)
+    all_labels = np.array(all_labels)
+    avg = "macro"
+    metrics = {
+        "loss":      total_loss / total,
+        "acc":       float((all_preds == all_labels).mean()),
+        "precision": float(precision_score(all_labels, all_preds, average=avg, zero_division=0)),
+        "recall":    float(recall_score(all_labels, all_preds, average=avg, zero_division=0)),
+        "f1":        float(f1_score(all_labels, all_preds, average=avg, zero_division=0)),
+        "report":    classification_report(all_labels, all_preds,
+                                           target_names=list(LABEL_NAMES.values()),
+                                           zero_division=0),
+    }
+    return metrics
 
 
 def main():
@@ -206,28 +225,36 @@ def main():
                 if use_wandb:
                     wandb.log({"train/loss": train_loss, "train/acc": train_acc, "train/lr": lr}, step=global_step)
 
-        val_loss, val_acc = evaluate(model, val_loader, device, scaler if use_fp16 else None)
-        print(f"  [val] loss={val_loss:.4f}  acc={val_acc:.4f}")
-        writer.add_scalar("val/loss", val_loss, epoch)
-        writer.add_scalar("val/acc", val_acc, epoch)
+        val = evaluate(model, val_loader, device, scaler if use_fp16 else None)
+        print(
+            f"  [val] loss={val['loss']:.4f}  acc={val['acc']:.4f}"
+            f"  prec={val['precision']:.4f}  rec={val['recall']:.4f}  f1={val['f1']:.4f}"
+        )
+        print(val["report"])
+        for key in ("loss", "acc", "precision", "recall", "f1"):
+            writer.add_scalar(f"val/{key}", val[key], epoch)
         if use_wandb:
-            wandb.log({"val/loss": val_loss, "val/acc": val_acc, "epoch": epoch}, step=global_step)
+            wandb.log(
+                {f"val/{k}": val[k] for k in ("loss", "acc", "precision", "recall", "f1")}
+                | {"epoch": epoch},
+                step=global_step,
+            )
 
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+        if val["f1"] > best_val_acc:
+            best_val_acc = val["f1"]
             ckpt_path = os.path.join(args.checkpoint_dir, "best_model.pth")
             torch.save(
-                {"epoch": epoch, "model": model.state_dict(), "val_acc": val_acc},
+                {"epoch": epoch, "model": model.state_dict(), "val_f1": val["f1"]},
                 ckpt_path,
             )
-            print(f"  ✓ Saved best model (val_acc={val_acc:.4f}) → {ckpt_path}")
+            print(f"  ✓ Saved best model (val_f1={val['f1']:.4f}) → {ckpt_path}")
 
     # Save final checkpoint
     torch.save(
-        {"epoch": args.epochs, "model": model.state_dict(), "val_acc": val_acc},
+        {"epoch": args.epochs, "model": model.state_dict(), "val_f1": val["f1"]},
         os.path.join(args.checkpoint_dir, "final_model.pth"),
     )
-    print(f"\nTraining complete. Best val accuracy: {best_val_acc:.4f}")
+    print(f"\nTraining complete. Best val F1: {best_val_acc:.4f}")
     writer.close()
     if use_wandb:
         wandb.finish()
