@@ -234,7 +234,7 @@ class LeRobotClipDataset(Dataset):
         frames = _decode_frames_decord(video_path, frame_indices, self.image_size)  # T C H W
         # Normalize each frame
         frames = torch.stack([self.normalize(frames[t]) for t in range(frames.shape[0])])  # T C H W
-        # VideoMAE expects (C, T, H, W)
-        pixel_values = frames.permute(1, 0, 2, 3)  # C T H W
+        # VideoMAE expects (T, C, H, W) → batch dim added by DataLoader → (B, T, C, H, W)
+        pixel_values = frames  # T C H W
 
         return {"pixel_values": pixel_values, "labels": torch.tensor(label, dtype=torch.long)}

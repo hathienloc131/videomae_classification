@@ -117,7 +117,7 @@ def predict(
     frames = _decode_frames_decord(video_path, frame_indices, image_size)  # T C H W
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     frames = torch.stack([normalize(frames[t]) for t in range(frames.shape[0])])  # T C H W
-    pixel_values = frames.permute(1, 0, 2, 3).unsqueeze(0).to(device)  # 1 C T H W
+    pixel_values = frames.unsqueeze(0).to(device)  # 1 T C H W
 
     # Load model & run
     model = load_checkpoint(checkpoint_path, model_name=model_name).to(device)
