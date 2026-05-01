@@ -181,7 +181,7 @@ def main():
         pct_start=0.1,          # 10% warmup
         anneal_strategy="cos",
     )
-    scaler = torch.cuda.amp.GradScaler(enabled=use_fp16)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_fp16)
 
     # ── Training loop ─────────────────────────────────────────────────────────
     best_val_acc = 0.0

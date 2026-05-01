@@ -31,10 +31,8 @@ def _decode_frames_decord(video_path: str, frame_indices: List[int], image_size:
     except Exception:
         frames = _decode_frames_av(video_path, frame_indices)
 
-    # Resize to image_size x image_size
-    resize = transforms.Resize((image_size, image_size), antialias=True)
-    frames = resize(frames.view(-1, *frames.shape[-2:]).unsqueeze(0)).squeeze(0)
-    frames = resize(frames)
+    # Resize to image_size x image_size — Resize handles (..., H, W) directly
+    frames = transforms.functional.resize(frames, [image_size, image_size], antialias=True)
     return frames  # (T, C, H, W)
 
 
